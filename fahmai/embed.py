@@ -13,9 +13,9 @@ EMBED_DIM = 1024
 _URL = "https://openrouter.ai/api/v1/embeddings"
 
 
-def embed_batch(texts: list[str], retries: int = 5) -> list[list[float]]:
+def embed_batch(texts: list[str], retries: int = 5, model: str | None = None) -> list[list[float]]:
     key = os.environ["OPEN_ROUTER"]
-    payload = {"model": EMBED_MODEL, "input": texts}
+    payload = {"model": model or EMBED_MODEL, "input": texts}
     last = None
     for attempt in range(retries):
         try:

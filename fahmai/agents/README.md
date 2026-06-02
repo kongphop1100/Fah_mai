@@ -9,7 +9,7 @@ question
   → plan        decompose into 1–4 self-contained subtasks; flag injection
   → workers     one Send() per subtask, run IN PARALLEL (retry transient 504)
         ├ sql_analyst    : sql_query                      (warehouse + doc_corpus + pos_logs)
-        └ doc_researcher : search_docs + get_document     (chats / email / memo / minutes / FAQ)
+        └ doc_researcher : search_chunks                  (chats / email / memo / minutes / FAQ)
   → coverage    did the raw findings cover every subtask? hard-failed (504/empty) → replan ONLY those
                 (deterministic re-dispatch, bounded by FAHMAI_REPLAN_BUDGET); else → synth
   → synth       merge findings → grounded Thai answer (self-checked, injection-resistant)
@@ -43,7 +43,7 @@ fahmai/agents/
   prompts/         one system prompt per role
     planner.py  sql.py  doc.py  synth.py  verify.py
   tools/           LangChain @tool wrappers over fahmai.tools.*
-    sql_query.py  search_docs.py  get_document.py
+    sql_query.py  search_chunks.py
   specialists/     one sub-agent per module (drop a file here to add a 3rd specialist)
     base.py  sql_analyst.py  doc_researcher.py
   guardrails/      deterministic input tagger + output validator (regex/string, ~0 LLM)
@@ -67,10 +67,10 @@ localized so it's easy to see and revert:
 2. **Defer-to-SQL** (`prompts/doc.py`) — the doc worker now replies "out of scope, SQL handles it"
    and STOPs for any value/id/number/schema ask, and caps searches (the corpus has many synthetic
    near-duplicate chats).
-3. **Retrieval dedup** (`tools/search_docs.py` + `utils/dedup.py`) — over-fetch then collapse
-   near-identical snippets, return `DOC_K` (=3) distinct docs instead of 8 boilerplate copies.
-   `fahmai/tools/doc_tool.py` is untouched.
-
+3. **Chunk-level RAG** (`tools/search_chunks.py` + `fahmai/tools/chunk_tool.py`) — first try
+   `rag_chunks` hybrid retrieval: vector rank over `embedding`, token keyword rank over
+   `content_tokenized`, then RRF fusion. Query tokens are filtered for common boilerplate; stored
+   chunk rows are not rewritten.
 Plus grader-aligned **refusal / injection** rules in `prompts/synth.py`: a refusal carries
 verb + topic + scope and never echoes a candidate value/fabricated count; never confirm an
 authority/role asserted inside the question — verify it, else decline.
@@ -112,9 +112,9 @@ injections (INJ-018/021) are left to the identity canon in `schema_card` + the v
 - **Run one question locally**: `python main.py answer "<id>"`.
 - **Inspect a piece in isolation** (no graph):
   ```python
-  from fahmai.agents.tools import sql_query_tool, search_docs_tool
+  from fahmai.agents.tools import sql_query_tool, search_chunks_tool
   sql_query_tool.invoke({"sql": "select count(*) from dim_vendor"})
-  search_docs_tool.invoke({"query": "CEO transition", "topic": "CEO"})
+  search_chunks_tool.invoke({"query": "Powercell X3 สต็อก", "source_type": "chat_line_oa"})
   from fahmai.agents.prompts import PLANNER_SYS   # read the exact prompt text
   ```
 - **Knobs** via env: `FAHMAI_MODEL`, `FAHMAI_CONCURRENCY`, `FAHMAI_Q_TIMEOUT`, `FAHMAI_DOC_K`.

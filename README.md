@@ -22,7 +22,7 @@ python main.py eval                       # regression compare vs data/ground_tr
 ```
 fahmai/                 installable package
   agents/               the team agent  (see fahmai/agents/README.md)
-  tools/                sql_tool, doc_tool, schema_card  (low-level)
+  tools/                sql_tool, doc_tool, chunk_tool, schema_card  (low-level)
   utils/                shared helpers: json_parse, dedup, scoring
   ingestion/            load tables/docs into Supabase; build embeddings
   db.py  embed.py       Postgres connection (session pooler) + OpenRouter embeddings
@@ -40,3 +40,7 @@ uv run python -m fahmai.ingestion.load_to_supabase   # CSV tables → Postgres
 uv run python -m fahmai.ingestion.load_docs          # docs → doc_corpus
 uv run python -m fahmai.ingestion.embed_docs         # embeddings → doc_vec
 ```
+
+Chunk-level RAG now reads the optional `rag_chunks` table when available. The chunk path keeps the
+fixed chunk schema, searches `embedding` and `content_tokenized`, fuses both branches with RRF, and
+passes `contextualized_content` to the document researcher. See `RAG_ARCHITECTURE_PLAN.md`.
