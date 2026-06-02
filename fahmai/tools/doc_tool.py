@@ -58,6 +58,51 @@ def search_docs(query: str, channel: str | None = None, topic: str | None = None
     return "\n".join(out)
 
 
+def _filters(channel, topic, date_from, date_to, keyword):
+    """Build a metadata + keyword WHERE clause (no vector). Returns (clause, params)."""
+    where, p = [], {}
+    if channel:   where.append("channel = :ch");     p["ch"] = channel
+    if topic:     where.append("topic ILIKE :tp");   p["tp"] = f"{topic}%"
+    if date_from: where.append("doc_date >= :df");   p["df"] = date_from
+    if date_to:   where.append("doc_date <= :dt");   p["dt"] = date_to
+    if keyword:   where.append("content ILIKE :kw"); p["kw"] = f"%{keyword}%"
+    clause = ("WHERE " + " AND ".join(where)) if where else ""
+    return clause, p
+
+
+def _kw_snippet(content, keyword, width=240):
+    """A snippet centred on the first keyword hit (else the head). For narrative extraction."""
+    content = content or ""
+    if keyword:
+        i = content.lower().find(keyword.lower())
+        if i >= 0:
+            a = max(0, i - width // 3)
+            return " ".join(content[a:a + width].split())
+    return " ".join(content[:width].split())
+
+
+def query_docs(channel=None, topic=None, date_from=None, date_to=None, keyword=None,
+               k: int = 5, snippet_around: bool = True) -> list[dict]:
+    """Metadata + exact-keyword document search (NO vector). Filter by channel / topic (prefix) /
+    date range / keyword (ILIKE), ordered by doc_date. An EMPTY result is the definitive ABSENT
+    signal (the info is not in the corpus)."""
+    clause, p = _filters(channel, topic, date_from, date_to, keyword)
+    p["k"] = int(k)
+    sql = f"SELECT doc_id, channel, doc_date, topic, content FROM doc_corpus {clause} ORDER BY doc_date LIMIT :k"
+    with ENGINE.connect() as c:
+        rows = c.execute(text(sql), p).fetchall()
+    return [dict(doc_id=r.doc_id, channel=r.channel, doc_date=str(r.doc_date), topic=r.topic or "-",
+                 snippet=_kw_snippet(r.content, keyword if snippet_around else None)) for r in rows]
+
+
+def count_docs(channel=None, topic=None, date_from=None, date_to=None, keyword=None) -> int:
+    """Count documents under the same metadata+keyword filters (NO vector). Use for 'how many
+    threads/chats' questions and to confirm absence (count 0 = not in the dataset)."""
+    clause, p = _filters(channel, topic, date_from, date_to, keyword)
+    with ENGINE.connect() as c:
+        return c.execute(text(f"SELECT count(*) n FROM doc_corpus {clause}"), p).fetchone().n
+
+
 def get_document(doc_id: str) -> str:
     """Return full content + metadata for one doc_id (for phrase/amount extraction)."""
     with ENGINE.connect() as c:

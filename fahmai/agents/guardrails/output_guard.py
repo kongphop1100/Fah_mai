@@ -73,10 +73,11 @@ def check_output(answer: str, flags: InputFlags, findings_empty: bool = False,
     if not is_thai(a):
         out.append(Violation("not_thai", "answer is not in Thai", scrubbable=False))
 
-    # (4) affirmed an authority/role the question tried to plant. Trigger on either the regex flag
-    # (question literally planted a role/authority claim) OR the planner's semantic is_injection
-    # judgement — the latter catches affirmations the keyword flag misses.
-    if (flags.authority_grant or is_injection) and _AFFIRM_RE.search(a):
+    # (4) affirmed an authority/role the question tried to plant. Require the actual planted-authority
+    # signal (`authority_grant`) — NOT a bare `is_injection`, which also flags adversarial-sounding
+    # ANALYTICAL audits (e.g. XHARD-009) that legitimately discuss approvers ("อนุมัติ") and must not be
+    # hard-declined. `is_injection` alone over-triggers force_decline and nukes correct answers.
+    if flags.authority_grant and _AFFIRM_RE.search(a):
         out.append(Violation("authority_affirm", "affirms an asserted authority/role", scrubbable=False))
 
     # (5) a refusal is expected but it isn't well-formed (verb + scope)

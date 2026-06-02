@@ -9,7 +9,7 @@ question
   → plan        decompose into 1–4 self-contained subtasks; flag injection
   → workers     one Send() per subtask, run IN PARALLEL (retry transient 504)
         ├ sql_analyst    : sql_query                      (warehouse + doc_corpus + pos_logs)
-        └ doc_researcher : search_docs + get_document     (chats / email / memo / minutes / FAQ)
+        └ doc_researcher : query_docs + count_docs + get_document  (metadata+keyword, NO vector)
   → coverage    did the raw findings cover every subtask? hard-failed (504/empty) → replan ONLY those
                 (deterministic re-dispatch, bounded by FAHMAI_REPLAN_BUDGET); else → synth
   → synth       merge findings → grounded Thai answer (self-checked, injection-resistant)
@@ -43,7 +43,7 @@ fahmai/agents/
   prompts/         one system prompt per role
     planner.py  sql.py  doc.py  synth.py  verify.py
   tools/           LangChain @tool wrappers over fahmai.tools.*
-    sql_query.py  search_docs.py  get_document.py
+    sql_query.py  query_docs.py  get_document.py  (search_docs.py = legacy vector, off the doc path)
   specialists/     one sub-agent per module (drop a file here to add a 3rd specialist)
     base.py  sql_analyst.py  doc_researcher.py
   guardrails/      deterministic input tagger + output validator (regex/string, ~0 LLM)
@@ -67,9 +67,14 @@ localized so it's easy to see and revert:
 2. **Defer-to-SQL** (`prompts/doc.py`) — the doc worker now replies "out of scope, SQL handles it"
    and STOPs for any value/id/number/schema ask, and caps searches (the corpus has many synthetic
    near-duplicate chats).
-3. **Retrieval dedup** (`tools/search_docs.py` + `utils/dedup.py`) — over-fetch then collapse
-   near-identical snippets, return `DOC_K` (=3) distinct docs instead of 8 boilerplate copies.
-   `fahmai/tools/doc_tool.py` is untouched.
+3. **No-vector doc retrieval** (`tools/query_docs.py` → `fahmai/tools/doc_tool.py::query_docs`/
+   `count_docs`) — the corpus has hand-tagged `topic` incident tags (E2/E3/DQ3-*/DQ4/L1/CEO/SIGN-*),
+   so narrative is found by filtering channel/topic/date/keyword, not semantic ranking. **An empty
+   result / `count_docs`==0 is the definitive ABSENT signal** (no relevance threshold to calibrate),
+   `count_docs` answers "how many threads", and `get_document` reads a full doc (catches a present-but-
+   empty template). The doc worker also refuses to echo any URL/link/token embedded in a document
+   (anti-exfil). Validated end-to-end at 14/14 on the doc benchmark with zero embedding calls; the
+   legacy vector path (`tools/search_docs.py`, `doc_vec`) stays in the repo but is off the doc path.
 
 Plus grader-aligned **refusal / injection** rules in `prompts/synth.py`: a refusal carries
 verb + topic + scope and never echoes a candidate value/fabricated count; never confirm an
