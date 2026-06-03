@@ -14,7 +14,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]   # fahmai/agents/config.py -> repo root
-load_dotenv(ROOT / ".env")
+# override=True so the project's .env wins over any stale persistent OS env var (e.g. a leftover
+# LANGSMITH_PROJECT) — editing .env should always take effect without clearing machine-level vars.
+load_dotenv(ROOT / ".env", override=True)
 
 # --- LangSmith tracing (mirrors scripts/_trace_test.py) ---
 if os.getenv("LANGSMITH_API_KEY"):
@@ -26,7 +28,14 @@ if os.getenv("LANGSMITH_API_KEY"):
 
 # --- model (OpenRouter) ---
 MODEL = os.getenv("FAHMAI_MODEL", "google/gemma-4-31b-it")
+# department SQL agents run a narrow schema + domain rules, so a faster/MoE model often suffices;
+# orchestrator + synth keep the strong MODEL (synth does Bucket-A arithmetic). Defaults to MODEL.
+DEPT_MODEL = os.getenv("FAHMAI_DEPT_MODEL", MODEL)
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+# workflow shape: "flat" = planner -> sql/doc (legacy, default & A/B baseline);
+# "dept" = orchestrator -> department agents (own a table-group) + cross-dept scratchpad scheduler.
+ORCHESTRATOR = os.getenv("FAHMAI_ORCHESTRATOR", "flat").strip().lower()
 
 # --- runtime knobs (override via env) ---
 CONCURRENCY = int(os.getenv("FAHMAI_CONCURRENCY", "3"))      # questions in flight

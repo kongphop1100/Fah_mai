@@ -22,6 +22,11 @@ failures (a 504'd subtask is re-dispatched rather than re-worded).
 
 Model: **google/gemma-4-31b-it** via OpenRouter · LangSmith tracing (project `fahmai`).
 
+> **Alternative workflow:** set `FAHMAI_ORCHESTRATOR=dept` to swap the flat `plan → sql/doc` stage for an
+> **orchestrator → department agents** graph (each department owns a table-group and runs a narrow schema
+> slice, so a fast/MoE `FAHMAI_DEPT_MODEL` can do the SQL while a strong `FAHMAI_MODEL` routes + synthesizes).
+> The default stays `flat` (the A/B baseline). See **`departments/README.md`**.
+
 ## Quick start
 ```bash
 uv sync                                   # installs the `fahmai` package editable
@@ -128,7 +133,8 @@ injections (INJ-018/021) are left to the identity canon in `schema_card` + the v
   search_docs_tool.invoke({"query": "CEO transition", "topic": "CEO"})
   from fahmai.agents.prompts import PLANNER_SYS   # read the exact prompt text
   ```
-- **Knobs** via env: `FAHMAI_MODEL`, `FAHMAI_CONCURRENCY`, `FAHMAI_Q_TIMEOUT`, `FAHMAI_DOC_K`.
+- **Knobs** via env: `FAHMAI_MODEL`, `FAHMAI_CONCURRENCY`, `FAHMAI_Q_TIMEOUT`, `FAHMAI_DOC_K`,
+  `FAHMAI_ORCHESTRATOR` (`flat`/`dept`), `FAHMAI_DEPT_MODEL` (department agents in `dept` mode).
 
 ## Resume / retry note
 `submit` treats any non-blank cell as done — `(timeout)`/`(error: …)` rows are NOT auto-retried.

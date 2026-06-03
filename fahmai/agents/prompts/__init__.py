@@ -28,6 +28,7 @@ PLANNER_SYS = load_prompt("planner.md")
 SYNTH_SYS = load_prompt("synth.md")
 DOC_SYS = load_prompt("doc.md")
 VERIFY_SYS = load_prompt("verify.md")
+ORCHESTRATOR_SYS = load_prompt("orchestrator.md")   # ORCHESTRATOR=dept: routes to departments
 
 # A/B toggle (must match build_mschema): RAW = query raw fact_* and do BE→CE + dedup yourself.
 _PREFER = ("Use the raw fact_* tables; the schema card lists them. Apply the BE→CE year and dedup "
@@ -38,4 +39,9 @@ _PREFER = ("Use the raw fact_* tables; the schema card lists them. Apply the BE�
 
 SQL_SYS = " ".join(load_prompt("sql.md").split()).replace("{PREFER}", _PREFER) + "\n\n" + SCHEMA_CARD
 
-__all__ = ["load_prompt", "PLANNER_SYS", "SQL_SYS", "DOC_SYS", "SYNTH_SYS", "VERIFY_SYS"]
+# department base prompt (ORCHESTRATOR=dept): the SQL-analyst body WITHOUT a schema card — each
+# department appends its own narrow card via fahmai.tools.schema_card.dept_card().
+DEPT_BASE_SYS = " ".join(load_prompt("dept_base.md").split()).replace("{PREFER}", _PREFER)
+
+__all__ = ["load_prompt", "PLANNER_SYS", "SQL_SYS", "DOC_SYS", "SYNTH_SYS", "VERIFY_SYS",
+           "ORCHESTRATOR_SYS", "DEPT_BASE_SYS"]

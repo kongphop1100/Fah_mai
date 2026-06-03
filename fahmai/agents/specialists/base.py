@@ -13,9 +13,10 @@ from fahmai.agents.llm import make_llm
 _TRANSIENT = ("504", "aborted", "timeout", "timed out", "502", "503", "gateway")
 
 
-def build_react(prompt: str, tools: list):
-    """A ReAct agent bound to `tools` with the given system prompt."""
-    return create_react_agent(make_llm(), tools, prompt=prompt)
+def build_react(prompt: str, tools: list, model: str | None = None):
+    """A ReAct agent bound to `tools` with the given system prompt. `model` overrides the default
+    (department agents pass DEPT_MODEL so they can run a faster/MoE model than the orchestrator)."""
+    return create_react_agent(make_llm(model=model), tools, prompt=prompt)
 
 
 def _is_transient(err: Exception) -> bool:
