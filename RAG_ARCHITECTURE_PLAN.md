@@ -2,7 +2,7 @@
 
 ## Summary
 
-Replace the current document-level RAG retrieval with chunk-level hybrid retrieval. Keep the provided chunk schema unchanged. Use each chunk's `embedding` for vector search, `content_tokenized` for keyword search with PyThaiNLP query tokens, and combine both ranked result lists with RRF, Reciprocal Rank Fusion.
+Replace the current document-level RAG retrieval with chunk-level hybrid retrieval. Keep the provided chunk schema unchanged. Use Qwen3 Embedding 8B to embed the query, each chunk's `embedding` for vector search, `content_tokenized` for keyword search with PyThaiNLP query tokens, and combine both ranked result lists with RRF, Reciprocal Rank Fusion.
 
 ## Current State
 
@@ -42,7 +42,7 @@ Add indexes/views only, not helper tables, to respect the current schema constra
 user query
 -> tokenize query with PyThaiNLP
 -> filter common/noise query tokens
--> embed query with current embedding model, currently Qwen3 embedding 8B
+-> embed query with Qwen3 Embedding 8B via ModelHarbor
 -> vector search over rag_chunks.embedding
 -> keyword search over rag_chunks.content_tokenized
 -> RRF fuse vector results and keyword results
@@ -100,7 +100,7 @@ Replace the current document search tool with a chunk search tool.
 Recommended tool behavior:
 
 ```text
-search_chunks(query, top_k=5, vector_k=50, keyword_k=50, filters={...})
+search_chunks(query, top_k=6, vector_k=100, keyword_k=17, filters={...})
 ```
 
 Returned result should include:
@@ -116,6 +116,8 @@ rrf_score
 ```
 
 Existing doc agent should consume `contextualized_content` instead of whole-document snippets.
+The retriever may inspect full chunk rows internally, but the tool output should not include
+`embedding`, `content_tokenized`, `parent_content`, `content_sha256`, or large raw metadata.
 
 Do not fall back to `search_docs_tool`, `get_document_tool`, `doc_corpus`, or `doc_vec` for RAG
 retrieval. If chunk search returns no matches or the `rag_chunks` table is unavailable, report that
@@ -129,11 +131,14 @@ chunk retrieval did not find usable context rather than switching to document-le
 - Verify RRF promotes chunks that appear high in both vector and keyword lists.
 - Verify existing SQL/database routing remains separate from RAG retrieval.
 - Verify final returned context uses `contextualized_content`.
+- Verify final returned context includes no more than 6 chunks by default.
 
 ## Assumptions
 
 - The chunk schema provided by the user is fixed.
 - No separate inverted-index table will be added in v1.
 - Indexes and views are allowed.
-- Qwen3 embedding 8B is the current embedding model, but the retrieval code should make the embedding model configurable for future replacement.
+- Qwen3 Embedding 8B is served by the OpenAI-compatible ModelHarbor endpoint at `http://swarm-manager.modelharbor.com:52157/v1`.
+- PostgreSQL defaults to `fahmai_app@swarm-manager.modelharbor.com:54336/fahmai` with password from `FAHMAI_DB_PASSWORD`.
+- `FAHMAI_DB_PASSWORD` and `EMBEDDING_API_KEY` are loaded from `.env`.
 - `RRF` is the correct term, not `RFF`.

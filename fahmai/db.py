@@ -1,19 +1,14 @@
-"""Supabase Postgres connection helper.
+"""Postgres connection helper.
 
 Builds a SQLAlchemy engine from .env. Connection precedence:
-1. DATABASE_URL          -- explicit full string (e.g. Supabase session pooler), wins if set
-2. SUPABASE_DB_HOST/...  -- host/port/user override (e.g. pooler host + user postgres.<ref>)
-3. direct connection     -- db.<project-ref>.supabase.co:5432 (IPv6-only on free tier)
-
-If the direct connection fails (common on IPv4-only networks), grab the
-"Session pooler" connection string from the Supabase dashboard
-(Project Settings -> Database -> Connection string) and put it in .env as DATABASE_URL.
+1. DATABASE_URL -- explicit full string, wins if set.
+2. FAHMAI_DB_* -- ModelHarbor PostgreSQL defaults with password from FAHMAI_DB_PASSWORD.
 """
 from __future__ import annotations
 
 import os
 from pathlib import Path
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -22,25 +17,29 @@ from sqlalchemy.engine import Engine
 ROOT = Path(__file__).resolve().parents[1]   # repo root (fahmai/db.py -> fahmai_hack/)
 load_dotenv(ROOT / ".env")
 
+DEFAULT_DB_HOST = "swarm-manager.modelharbor.com"
+DEFAULT_DB_PORT = "54336"
+DEFAULT_DB_NAME = "fahmai"
+DEFAULT_DB_USER = "fahmai_app"
 
-def project_ref() -> str:
-    return urlparse(os.environ["SUPABASE_URL"]).hostname.split(".")[0]
+
+def _required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"missing required environment variable {name}")
+    return value
 
 
 def database_url() -> str:
     if os.getenv("DATABASE_URL"):
         return os.environ["DATABASE_URL"]
 
-    pwd = quote(os.environ["SUPABASE_PASSWORD"], safe="")
-    ref = project_ref()
-    # Default to the Supabase session pooler: the direct db.<ref> host is IPv6-only and does not
-    # resolve on most IPv4 networks. Callers no longer need to set SUPABASE_DB_* themselves.
-    host = os.getenv("SUPABASE_DB_HOST", "aws-1-ap-southeast-1.pooler.supabase.com")
-    port = os.getenv("SUPABASE_DB_PORT", "5432")
-    # the pooler requires user "postgres.<project-ref>"; a direct db.<ref> host uses plain "postgres"
-    default_user = f"postgres.{ref}" if "pooler" in host else "postgres"
-    user = os.getenv("SUPABASE_DB_USER", default_user)
-    return f"postgresql+psycopg://{user}:{pwd}@{host}:{port}/postgres"
+    pwd = quote(_required_env("FAHMAI_DB_PASSWORD"), safe="")
+    host = os.getenv("FAHMAI_DB_HOST", DEFAULT_DB_HOST)
+    port = os.getenv("FAHMAI_DB_PORT", DEFAULT_DB_PORT)
+    user = os.getenv("FAHMAI_DB_USER", DEFAULT_DB_USER)
+    name = os.getenv("FAHMAI_DB_NAME", DEFAULT_DB_NAME)
+    return f"postgresql+psycopg://{user}:{pwd}@{host}:{port}/{name}"
 
 
 def get_engine() -> Engine:

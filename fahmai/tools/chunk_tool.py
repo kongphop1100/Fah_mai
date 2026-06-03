@@ -27,6 +27,9 @@ RRF_K = int(os.getenv("FAHMAI_RRF_K", "60"))
 CHUNK_CONTEXT_CHARS = int(os.getenv("FAHMAI_CHUNK_CONTEXT_CHARS", "2200"))
 PYTHAINLP_ENGINE = os.getenv("FAHMAI_PYTHAINLP_ENGINE", "newmm")
 CHUNK_EMBED_MODEL = os.getenv("FAHMAI_CHUNK_EMBED_MODEL") or os.getenv("EMBED_MODEL")
+DEFAULT_TOP_K = int(os.getenv("FAHMAI_CHUNK_TOP_K", "6"))
+DEFAULT_VECTOR_K = int(os.getenv("FAHMAI_CHUNK_VECTOR_K", "100"))
+DEFAULT_KEYWORD_K = int(os.getenv("FAHMAI_CHUNK_KEYWORD_K", "17"))
 
 _SPLIT_RE = re.compile(r"[\s,;:|/\\()[\]{}<>\"'`~!?]+")
 
@@ -282,7 +285,8 @@ def _fmt_hits(hits: list[ChunkHit], tokens: list[str]) -> str:
     return "\n\n".join(blocks)
 
 
-def search_chunks(query: str, top_k: int = 5, vector_k: int = 50, keyword_k: int = 50,
+def search_chunks(query: str, top_k: int = DEFAULT_TOP_K, vector_k: int = DEFAULT_VECTOR_K,
+                  keyword_k: int = DEFAULT_KEYWORD_K,
                   source_type: str | None = None, date_from: str | None = None,
                   date_to: str | None = None, keyword: str | None = None) -> str:
     """Hybrid chunk search: vector rank + PyThaiNLP-token keyword rank + RRF fusion."""

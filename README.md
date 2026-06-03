@@ -1,14 +1,14 @@
 # fahmai-hack
 
-LangGraph multi-agent that answers the FahMai L3 questions over a Supabase Postgres warehouse
-+ a document corpus (Thai/EN). Super AI Engineer S6 — FahMai finale.
+LangGraph multi-agent that answers the FahMai L3 questions over a PostgreSQL warehouse
+and chunk-level RAG corpus (Thai/EN). Super AI Engineer S6 — FahMai finale.
 
 ## Setup
 ```bash
 uv sync                                   # dev env (installs the `fahmai` package editable)
 # minimal runtime instead:  pip install -r requirements.txt && pip install -e .
 ```
-Create `.env` with: `OPEN_ROUTER`, `SUPABASE_PASSWORD`, `SUPABASE_URL`, `SUPABASE_KEY`,
+Create `.env` with: `OPEN_ROUTER`, `FAHMAI_DB_PASSWORD`, `EMBEDDING_API_KEY`,
 and (optional) `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT=fahmai`.
 
 ## Run
@@ -24,8 +24,8 @@ fahmai/                 installable package
   agents/               the team agent  (see fahmai/agents/README.md)
   tools/                sql_tool, doc_tool, chunk_tool, schema_card  (low-level)
   utils/                shared helpers: json_parse, dedup, scoring
-  ingestion/            load tables/docs into Supabase; build embeddings
-  db.py  embed.py       Postgres connection (session pooler) + OpenRouter embeddings
+  ingestion/            load tables/docs into Postgres; build embeddings
+  db.py  embed.py       ModelHarbor Postgres connection + Qwen embeddings
 main.py                 CLI shim → fahmai.agents
 data/                   questions.csv · ground_truth.csv (reference answers) · submission.csv
 scripts/                one-off ingestion / validation / analysis helpers
@@ -41,6 +41,6 @@ uv run python -m fahmai.ingestion.load_docs          # docs → doc_corpus
 uv run python -m fahmai.ingestion.embed_docs         # embeddings → doc_vec
 ```
 
-Chunk-level RAG now reads the optional `rag_chunks` table when available. The chunk path keeps the
-fixed chunk schema, searches `embedding` and `content_tokenized`, fuses both branches with RRF, and
-passes `contextualized_content` to the document researcher. See `RAG_ARCHITECTURE_PLAN.md`.
+Chunk-level RAG reads the loaded `rag_chunks` table. The chunk path embeds queries with Qwen,
+searches `embedding` and `content_tokenized`, fuses both branches with RRF, and returns up to 6
+`contextualized_content` chunks to the document researcher. See `RAG_ARCHITECTURE_PLAN.md`.

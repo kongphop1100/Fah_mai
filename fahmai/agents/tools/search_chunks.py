@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain_core.tools import tool
 
-from fahmai.tools.chunk_tool import search_chunks
+from fahmai.tools.chunk_tool import DEFAULT_KEYWORD_K, DEFAULT_TOP_K, DEFAULT_VECTOR_K, search_chunks
 
 
 @tool
@@ -19,9 +19,9 @@ def search_chunks_tool(query: str, source_type: str = "", date_from: str = "",
     """
     return search_chunks(
         query,
-        top_k=top_k or 5,
-        vector_k=vector_k or 50,
-        keyword_k=keyword_k or 50,
+        top_k=top_k or DEFAULT_TOP_K,
+        vector_k=vector_k or DEFAULT_VECTOR_K,
+        keyword_k=keyword_k or DEFAULT_KEYWORD_K,
         source_type=source_type or None,
         date_from=date_from or None,
         date_to=date_to or None,

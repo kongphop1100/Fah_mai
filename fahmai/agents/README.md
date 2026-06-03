@@ -1,7 +1,7 @@
 # FahMai team agent (`fahmai.agents`)
 
-A LangGraph multi-agent that answers the FahMai L3 questions over a Supabase Postgres
-warehouse + a document corpus, in Thai.
+A LangGraph multi-agent that answers the FahMai L3 questions over a Postgres warehouse
+and chunk-level RAG corpus, in Thai.
 
 ```
 question
@@ -32,8 +32,8 @@ python main.py submit                     # resumable batch → submission.csv
 python main.py submit --limit 5           # smoke: first 5 blank ids
 python main.py eval                       # regression compare vs data/ground_truth.csv
 ```
-`.env` must provide `OPEN_ROUTER`, `SUPABASE_PASSWORD`, `SUPABASE_URL`, and (optional)
-`LANGSMITH_API_KEY`. DB connection defaults to the Supabase session pooler (see `fahmai/db.py`).
+`.env` must provide `OPEN_ROUTER`, `FAHMAI_DB_PASSWORD`, `EMBEDDING_API_KEY`, and (optional)
+`LANGSMITH_API_KEY`. DB connection defaults to ModelHarbor Postgres (see `fahmai/db.py`).
 
 ## Layout (one responsibility per file)
 ```
@@ -68,9 +68,10 @@ localized so it's easy to see and revert:
    and STOPs for any value/id/number/schema ask, and caps searches (the corpus has many synthetic
    near-duplicate chats).
 3. **Chunk-level RAG** (`tools/search_chunks.py` + `fahmai/tools/chunk_tool.py`) — first try
-   `rag_chunks` hybrid retrieval: vector rank over `embedding`, token keyword rank over
-   `content_tokenized`, then RRF fusion. Query tokens are filtered for common boilerplate; stored
-   chunk rows are not rewritten.
+   `rag_chunks` hybrid retrieval: Qwen query embedding vector rank over `embedding`, token keyword
+   rank over `content_tokenized`, then RRF fusion. Query tokens are filtered for common boilerplate;
+   stored chunk rows are not rewritten. Candidate pools default to vector=100 and keyword=17; final
+   returned chunks default to 6.
 Plus grader-aligned **refusal / injection** rules in `prompts/synth.py`: a refusal carries
 verb + topic + scope and never echoes a candidate value/fabricated count; never confirm an
 authority/role asserted inside the question — verify it, else decline.
